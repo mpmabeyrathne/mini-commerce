@@ -98,6 +98,15 @@ func main() {
 
 	productStock := getStockStatus(products)
 	fmt.Println(productStock)
+
+	categories := map[string]string{
+		"keyboard" : "Accessories",
+		"mouse" : "Accessories",
+		"laptop" : "Computers",
+	}
+
+	fmt.Printf(categories["keyboard"])
+
 }
 
 func addProduct(product Product, products []Product) []Product {
