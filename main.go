@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
 )
 
 func main() {
@@ -112,5 +114,32 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+	bytes, _ := json.MarshalIndent(newProduct, "", "  ")
+
 	fmt.Println(string(jsonBytes))
+	fmt.Println(string(bytes))
+
+	jsonData := []byte(`{
+		"name": "Wireless Mouse",
+		"price": 5500,
+		"stock": 7
+	}`)
+	var j Product
+	err = json.Unmarshal(jsonData, &j)
+
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	fmt.Printf("%+v\n", j)
+
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "ok")
+	})
+	err = http.ListenAndServe(":"+strconv.Itoa(port), nil)
+
+	if err != nil {
+		fmt.Println("Server error:", err)
+	}
 }

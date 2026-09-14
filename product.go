@@ -5,9 +5,9 @@ import (
 )
 
 type Product struct {
-	Name  string
-	Price int
-	Stock int
+	Name  string `json:"name"`
+	Price int    `json:"price"`
+	Stock int    `json:"stock"`
 }
 
 type InStockProducts struct {
