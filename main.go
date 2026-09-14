@@ -1,22 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
-type Product struct {
-	Name  string
-	Price int
-	Stock int
-}
-
-type InStockProducts struct {
-	Name   string
-	Stock  int
-	Status string
-}
-
 func main() {
+
 	const appName string = "Mini Commerce"
 	port := 8080
 	var environment string = "development"
@@ -41,7 +31,6 @@ func main() {
 	}
 
 	quantity := 2
-
 	total := calculateTotal(products[0].Price, quantity)
 
 	fmt.Printf("Product: %s\n", products[0].Name)
@@ -60,7 +49,7 @@ func main() {
 		Price: 7000,
 		Stock: 4,
 	}
-
+	fmt.Println(newProduct.IsAvailable())
 	products = addProduct(newProduct, products)
 
 	// fmt.Printf("Total products: %d\n", len(products))
@@ -84,13 +73,19 @@ func main() {
 		fmt.Printf("Stock: %d\n", product.Stock)
 	}
 
-	searchedProduct, productStatus := findProductByName("Gaming Mouse", products)
+	searchedProduct, err := findProductByName("Gaming Mouse", products)
 
-	if productStatus {
-		fmt.Printf("\nFound: %s\nPrice: %d\nStock: %d\n", searchedProduct.Name, searchedProduct.Price, searchedProduct.Stock)
-	} else {
-		fmt.Printf("\nProduct not found")
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
+
+	fmt.Printf(
+		"\nFound: %s\nPrice: %d\nStock: %d\n",
+		searchedProduct.Name,
+		searchedProduct.Price,
+		searchedProduct.Stock,
+	)
 
 	newProducts := reduceStock("Gaming Mouse", 2, products)
 
@@ -100,64 +95,22 @@ func main() {
 	fmt.Println(productStock)
 
 	categories := map[string]string{
-		"keyboard" : "Accessories",
-		"mouse" : "Accessories",
-		"laptop" : "Computers",
+		"keyboard": "Accessories",
+		"mouse":    "Accessories",
+		"laptop":   "Computers",
 	}
 
 	fmt.Printf(categories["keyboard"])
 
-}
+	stock := 5
+	fmt.Println(reduceStockByOne(&stock))
+	fmt.Println(stock)
 
-func addProduct(product Product, products []Product) []Product {
-	return append(products, product)
-}
+	jsonBytes, err := json.Marshal(newProduct)
 
-func findProductByName(value string, products []Product) (Product, bool) {
-	for _, p := range products {
-		if p.Name == value {
-			return p, true
-		}
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
 	}
-	return Product{}, false
-}
-
-func calculateTotal(price int, quantity int) int {
-	return price * quantity
-}
-
-func reduceStock(productName string, quantity int, products []Product) []Product {
-	for i := range products {
-		if products[i].Name == productName && (products[i].Stock >= quantity) {
-			products[i].Stock = products[i].Stock - quantity
-		}
-	}
-
-	return products
-
-}
-
-func getStockStatus(products []Product) []InStockProducts {
-	var inStockProducts []InStockProducts
-	for _, p := range products {
-		var status string
-		switch {
-		case p.Stock == 0:
-			status = "out of stock"
-		case p.Stock > 0 && p.Stock < 4:
-			status = "low stock"
-		case p.Stock >= 4:
-			status = "in stock"
-		default:
-			status = "invalid stock"
-		}
-		inStockProducts = append(inStockProducts, InStockProducts{
-			Name:   p.Name,
-			Stock:  p.Stock,
-			Status: status,
-		})
-
-	}
-
-	return inStockProducts
+	fmt.Println(string(jsonBytes))
 }
