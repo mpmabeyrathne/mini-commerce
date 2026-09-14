@@ -8,6 +8,7 @@ type Product struct {
 	Name  string `json:"name"`
 	Price int    `json:"price"`
 	Stock int    `json:"stock"`
+	ID    int    `json:"id"`
 }
 
 type InStockProducts struct {
@@ -33,6 +34,15 @@ func addProduct(product Product, products []Product) []Product {
 func findProductByName(value string, products []Product) (Product, error) {
 	for _, p := range products {
 		if p.Name == value {
+			return p, nil
+		}
+	}
+	return Product{}, errors.New("Not found")
+}
+
+func findProductById(value int, products []Product) (Product, error) {
+	for _, p := range products {
+		if p.ID == value {
 			return p, nil
 		}
 	}
