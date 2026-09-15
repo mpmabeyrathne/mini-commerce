@@ -1,28 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 )
 
 func main() {
 
 	const appName string = "Mini Commerce"
-	environment := os.Getenv("APP_ENV")
-	if environment == "" {
-		environment = "development"
-	}
-	portStr := os.Getenv("PORT")
-	if portStr == "" {
-		portStr = "8080"
-	}
-
-	port, err := strconv.Atoi(portStr)
+	cfg, err := LoadConfig()
 	if err != nil {
-		fmt.Println("Invalid port configuration:", err)
+		log.Println("Invalid port configuration:", err)
 		return
 	}
 
@@ -40,9 +29,9 @@ func main() {
 
 	mux.HandleFunc("PUT /product/{id}", UpdateProductHandler)
 
-	log.Printf("Starting %s %s server on :%d", appName, environment, port)
+	log.Printf("Starting %s %s server on :%d", appName, cfg.Env, cfg.Port)
 
-	err = http.ListenAndServe(":"+strconv.Itoa(port), mux)
+	err = http.ListenAndServe(":"+strconv.Itoa(cfg.Port), mux)
 
 	if err != nil {
 		log.Fatal("Server error:", err)
