@@ -88,3 +88,9 @@ func getStockStatus(products []Product) []InStockProducts {
 
 	return inStockProducts
 }
+
+var products = []Product{
+	{ID: 1, Name: "Mechanical Keyboard", Price: 8500, Stock: 5},
+	{ID: 2, Name: "Gaming Mouse", Price: 4500, Stock: 8},
+	{ID: 3, Name: "USB-C Hub", Price: 6500, Stock: 3},
+}

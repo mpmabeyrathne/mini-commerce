@@ -1,286 +1,50 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 )
 
 func main() {
 
 	const appName string = "Mini Commerce"
-	port := 8080
-	var environment string = "development"
-
-	fmt.Printf("Application: %s \n", appName)
-	fmt.Printf("Port: %d \n", port)
-	fmt.Printf("Environment: %s\n", environment)
-
-	products := []Product{{
-		Name:  "Mechanical Keyboard",
-		Price: 8500,
-		Stock: 5,
-		ID:    1,
-	}, {
-		Name:  "Gaming Mouse",
-		Price: 4500,
-		Stock: 8,
-		ID:    2,
-	}, {
-		Name:  "USB-C Hub",
-		Price: 6500,
-		Stock: 3,
-		ID:    3,
-	},
+	environment := os.Getenv("APP_ENV")
+	if environment == "" {
+		environment = "development"
+	}
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
+		portStr = "8080"
 	}
 
-	quantity := 2
-	total := calculateTotal(products[0].Price, quantity)
-
-	fmt.Printf("Product: %s\n", products[0].Name)
-	fmt.Printf("Price: %d\n", products[0].Price)
-	fmt.Printf("Quantity: %d\n", quantity)
-	fmt.Printf("Total: %d\n", total)
-
-	if quantity <= products[0].Stock {
-		fmt.Printf("%s is available\n", products[0].Name)
-	} else {
-		fmt.Printf("%s is out of stock\n", products[0].Name)
-	}
-
-	newProduct := Product{
-		Name:  "Laptop Stand",
-		Price: 7000,
-		Stock: 4,
-		ID:    4,
-	}
-	fmt.Println(newProduct.IsAvailable())
-	products = addProduct(newProduct, products)
-
-	// fmt.Printf("Total products: %d\n", len(products))
-
-	// for x := 0; x < len(products); x++ {
-	// 	fmt.Printf("\nProduct: %s\n", products[x].Name)
-	// 	fmt.Printf("Price: %d\n", products[x].Price)
-	// 	fmt.Printf("Stock: %d\n", products[x].Stock)
-
-	// }
-
-	// for i := range len(products) {
-	// 	fmt.Printf("\nProduct: %s\n", products[i].Name)
-	// 	fmt.Printf("Price: %d\n", products[i].Price)
-	// 	fmt.Printf("Stock: %d\n", products[i].Stock)
-	// }
-
-	for _, product := range products {
-		fmt.Printf("\nProduct: %s\n", product.Name)
-		fmt.Printf("Price: %d\n", product.Price)
-		fmt.Printf("Stock: %d\n", product.Stock)
-	}
-
-	searchedProduct, err := findProductByName("Gaming Mouse", products)
-
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Invalid port configuration:", err)
 		return
 	}
 
-	fmt.Printf(
-		"\nFound: %s\nPrice: %d\nStock: %d\n",
-		searchedProduct.Name,
-		searchedProduct.Price,
-		searchedProduct.Stock,
-	)
+	mux := http.NewServeMux()
 
-	newProducts := reduceStock("Gaming Mouse", 2, products)
+	mux.HandleFunc("GET /health", HealthHandler)
 
-	fmt.Println(newProducts)
+	mux.HandleFunc("GET /products", GetProductstHandler)
 
-	productStock := getStockStatus(products)
-	fmt.Println(productStock)
+	mux.HandleFunc("GET /product/{id}", GetProducByIdtHandler)
 
-	categories := map[string]string{
-		"keyboard": "Accessories",
-		"mouse":    "Accessories",
-		"laptop":   "Computers",
-	}
+	mux.HandleFunc("POST /product", CreateProductHandler)
 
-	fmt.Printf(categories["keyboard"])
+	mux.HandleFunc("DELETE /product/{id}", DeleteProductHandler)
 
-	stock := 5
-	fmt.Println(reduceStockByOne(&stock))
-	fmt.Println(stock)
+	mux.HandleFunc("PUT /product/{id}", UpdateProductHandler)
 
-	jsonBytes, err := json.Marshal(newProduct)
+	log.Printf("Starting %s %s server on :%d", appName, environment, port)
+
+	err = http.ListenAndServe(":"+strconv.Itoa(port), mux)
 
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	bytes, _ := json.MarshalIndent(newProduct, "", "  ")
-
-	fmt.Println(string(jsonBytes))
-	fmt.Println(string(bytes))
-
-	jsonData := []byte(`{
-		"name": "Wireless Mouse",
-		"price": 5500,
-		"stock": 7
-	}`)
-	var j Product
-	err = json.Unmarshal(jsonData, &j)
-
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
-	fmt.Printf("%+v\n", j)
-
-	http.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "ok")
-	})
-
-	http.HandleFunc("GET /products", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(products)
-	})
-
-	http.HandleFunc("GET /product/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := r.PathValue("id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid Product ID layout", http.StatusBadRequest)
-			return
-		}
-		product, err := findProductById(id, products)
-		if err != nil {
-			http.Error(w, "Product not found", http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(product)
-	})
-
-	http.HandleFunc("POST /product", func(w http.ResponseWriter, r *http.Request) {
-		maxID := 0
-
-		var newProd Product
-		err := json.NewDecoder(r.Body).Decode(&newProd)
-
-		if err != nil {
-			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
-			return
-		}
-
-		if newProd.Name == "" {
-			http.Error(w, "Product name is required", http.StatusBadRequest)
-			return
-		}
-
-		if newProd.Price <= 0 {
-			http.Error(w, "Price must be greater than 0", http.StatusBadRequest)
-			return
-		}
-
-		if newProd.Stock < 0 {
-			http.Error(w, "Stock cannot be negative", http.StatusBadRequest)
-			return
-		}
-
-		for _, p := range products {
-			if p.ID > maxID {
-				maxID = p.ID
-			}
-		}
-		newProd.ID = maxID + 1
-
-		products = append(products, newProd)
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(newProd)
-
-	})
-
-	http.HandleFunc("DELETE /product/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := r.PathValue("id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid Product ID layout", http.StatusBadRequest)
-			return
-		}
-		foundIndex := -1
-		for i, p := range products {
-			if p.ID == id {
-				foundIndex = i
-				break
-			}
-		}
-
-		if foundIndex == -1 {
-			http.Error(w, "Product not found", http.StatusNotFound)
-			return
-		}
-		products = append(products[:foundIndex], products[foundIndex+1:]...)
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Product with ID %d removed successfully", id)
-	})
-
-	http.HandleFunc("PUT /product/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := r.PathValue("id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid ID format", http.StatusBadRequest)
-			return
-		}
-
-		var updatedData Product
-		err = json.NewDecoder(r.Body).Decode(&updatedData)
-		if err != nil {
-			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
-			return
-		}
-
-		if updatedData.Name == "" {
-			http.Error(w, "Product name is required", http.StatusBadRequest)
-			return
-		}
-		if updatedData.Price <= 0 {
-			http.Error(w, "Price must be greater than 0", http.StatusBadRequest)
-			return
-		}
-		if updatedData.Stock < 0 {
-			http.Error(w, "Stock cannot be negative", http.StatusBadRequest)
-			return
-		}
-
-		foundIndex := -1
-		for i, p := range products {
-			if p.ID == id {
-				foundIndex = i
-				break
-			}
-		}
-
-		if foundIndex == -1 {
-			http.Error(w, "Product not found", http.StatusNotFound)
-			return
-		}
-
-		updatedData.ID = id
-		products[foundIndex] = updatedData
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(updatedData)
-	})
-
-	err = http.ListenAndServe(":"+strconv.Itoa(port), nil)
-
-	if err != nil {
-		fmt.Println("Server error:", err)
+		log.Fatal("Server error:", err)
 	}
 }
